@@ -10,7 +10,7 @@ def add_polygon( points, x0, y0, z0, x1, y1, z1, x2, y2, z2 ):
     add_point( points, x1, y1, z1 )
     add_point( points, x2, y2, z2 )
     
-def draw_polygons( points, screen, color ):
+def draw_polygons( points, screen, color, z_buffer):
 
     if len(points) < 3:
         print 'Need at least 3 points to draw a polygon!'
@@ -20,12 +20,12 @@ def draw_polygons( points, screen, color ):
     while p < len( points ) - 2:
 
         if calculate_dot( points, p ) < 0:
-            draw_line( screen, points[p][0], points[p][1],
-                       points[p+1][0], points[p+1][1], color )
-            draw_line( screen, points[p+1][0], points[p+1][1],
-                       points[p+2][0], points[p+2][1], color )
-            draw_line( screen, points[p+2][0], points[p+2][1],
-                       points[p][0], points[p][1], color )
+            draw_line( screen, points[p][0], points[p][1], points[p][2],
+                       points[p+1][0], points[p+1][1], points[p+1][2], color, z_buffer )
+            draw_line( screen, points[p+1][0], points[p+1][1], points[p+1][2],
+                       points[p+2][0], points[p+2][1], points[p+2][2], color, z_buffer )
+            draw_line( screen, points[p+2][0], points[p+2][1], points[p+2][2],
+                       points[p][0], points[p][1], points[p][2], color, z_buffer )
         p+= 3
 
 
@@ -272,14 +272,14 @@ def add_curve( points, x0, y0, x1, y1, x2, y2, x3, y3, step, curve_type ):
         y0 = y
         t+= step
 
-def draw_lines( matrix, screen, color ):
+def draw_lines( matrix, screen, color, z_buffer):
     if len( matrix ) < 2:
         print "Need at least 2 points to draw a line"
         
     p = 0
     while p < len( matrix ) - 1:
-        draw_line( screen, matrix[p][0], matrix[p][1],
-                   matrix[p+1][0], matrix[p+1][1], color )
+        draw_line( screen, matrix[p][0], matrix[p][1], matrix[p][2],
+                   matrix[p+1][0], matrix[p+1][1], matrix[p + 1][2], color, z_buffer )
         p+= 2
 
 def add_edge( matrix, x0, y0, z0, x1, y1, z1 ):
@@ -290,39 +290,54 @@ def add_point( matrix, x, y, z=0 ):
     matrix.append( [x, y, z, 1] )
 
 
-def draw_line( screen, x0, y0, x1, y1, color ):
+def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer):
     dx = x1 - x0
     dy = y1 - y0
+    dz = z1 - z0
     if dx + dy < 0:
         dx = 0 - dx
         dy = 0 - dy
+        dz = 0 - dz
         tmp = x0
         x0 = x1
         x1 = tmp
         tmp = y0
         y0 = y1
         y1 = tmp
-    
-    if dx == 0:
+        tmp = z0
+        z0 = z1
+        z1 = tmp
+
+
+    if dx == 0 and dy == 0:
+        if z0 > z1:
+            plot(screen, color, x0, y0, z0, z_buffer)
+        else:
+            plot(screen, color, x0, y0, z1, z_buffer)
+    elif dx == 0:
         y = y0
         while y <= y1:
             plot(screen, color,  x0, y)
             y = y + 1
+            z += dz/dy
     elif dy == 0:
         x = x0
         while x <= x1:
             plot(screen, color, x, y0)
             x = x + 1
+            z += dz/dx
     elif dy < 0:
         d = 0
         x = x0
         y = y0
+        z = z0
         while x <= x1:
             plot(screen, color, x, y)
             if d > 0:
                 y = y - 1
                 d = d - dx
             x = x + 1
+            z += dz/dx
             d = d - dy
     elif dx < 0:
         d = 0
@@ -334,6 +349,7 @@ def draw_line( screen, x0, y0, x1, y1, color ):
                 x = x - 1
                 d = d - dy
             y = y + 1
+            z += dz/dy
             d = d - dx
     elif dx > dy:
         d = 0
@@ -345,15 +361,21 @@ def draw_line( screen, x0, y0, x1, y1, color ):
                 y = y + 1
                 d = d - dx
             x = x + 1
+            z += dz/dx
             d = d + dy
     else:
         d = 0
         x = x0
         y = y0
+        z = z0
         while y <= y1:
-            plot(screen, color, x, y)
+            plot(screen, color, x, y, z, z_buffer)
             if d > 0:
                 x = x + 1
                 d = d - dy
             y = y + 1
+            z += dz/dy
             d = d + dx
+
+def scanline_conversion(p0,p1,p2):
+    pass
