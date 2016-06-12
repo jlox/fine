@@ -317,13 +317,13 @@ def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer):
     elif dx == 0:
         y = y0
         while y <= y1:
-            plot(screen, color,  x0, y)
+            plot(screen, color,  x0, y, z, z_buffer)
             y = y + 1
             z += dz/dy
     elif dy == 0:
         x = x0
         while x <= x1:
-            plot(screen, color, x, y0)
+            plot(screen, color, x, y0, z, z_buffer)
             x = x + 1
             z += dz/dx
     elif dy < 0:
@@ -332,7 +332,7 @@ def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer):
         y = y0
         z = z0
         while x <= x1:
-            plot(screen, color, x, y)
+            plot(screen, color, x, y, z, z_buffer)
             if d > 0:
                 y = y - 1
                 d = d - dx
@@ -344,7 +344,7 @@ def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer):
         x = x0
         y = y0
         while y <= y1:
-            plot(screen, color, x, y)
+            plot(screen, color, x, y, z, z_buffer)
             if d > 0:
                 x = x - 1
                 d = d - dy
@@ -356,7 +356,7 @@ def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer):
         x = x0
         y = y0
         while x <= x1:
-            plot(screen, color, x, y)
+            plot(screen, color, x, y, z, z_buffer)
             if d > 0:
                 y = y + 1
                 d = d - dx
