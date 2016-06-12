@@ -59,7 +59,8 @@ def first_pass( commands ):
 
     frameCheck = varyCheck = nameCheck = 0
     name = ''
-
+    num_frames = 1
+    
     for command in commands:
         
         if command[0] == 'frames':
@@ -274,6 +275,10 @@ def run(filename):
                 stack[-1] = t
                 
         if num_frames > 1:
-            fname = 'anim/%s%03d.png' % (name, f)
+            fname = 'temp/%s%03d.png' % (name, f)
             print 'Drawing frame: ' + fname
             save_extension(screen, fname)
+            for x in xrange(XRES):
+                for y in xrange(YRES):
+                    z_buffer[x][y] = -float('inf')
+             
