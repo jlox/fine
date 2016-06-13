@@ -1,7 +1,7 @@
 from display import *
 from matrix import *
 from gmath import calculate_dot
-from math import cos, sin, pi
+from math import cos, sin, pi, floor
 
 MAX_STEPS = 100
 
@@ -10,7 +10,7 @@ def add_polygon( points, x0, y0, z0, x1, y1, z1, x2, y2, z2 ):
     add_point( points, x1, y1, z1 )
     add_point( points, x2, y2, z2 )
     
-def draw_polygons( points, screen, color, z_buffer):
+def draw_polygons( points, screen, color, z_buffer, sources, constants, shading):
 
     if len(points) < 3:
         print 'Need at least 3 points to draw a polygon!'
@@ -18,18 +18,39 @@ def draw_polygons( points, screen, color, z_buffer):
 
     p = 0
     while p < len( points ) - 2:
+        if shading == "wireframe":
+            if calculate_dot( points, p ) < 0:
+                draw_line( screen, points[p][0], points[p][1], points[p][2],
+                           points[p+1][0], points[p+1][1], points[p+1][2], color, z_buffer )
+                draw_line( screen, points[p+1][0], points[p+1][1], points[p+1][2],
+                           points[p+2][0], points[p+2][1], points[p+2][2], color, z_buffer )
+                draw_line( screen, points[p+2][0], points[p+2][1], points[p+2][2],
+                        points[p][0], points[p][1], points[p][2], color, z_buffer )
+            if shading == "flat":
+                c = []
+                
+                iamb = [color[0]*constants[0], color[1]*constants[1], color[2]*constants[2]]
+                idiff = [0, 0, 0]
+                ispec = [0, 0, 0]
+            
+                norm = normalize(calculate_normal(points, p))
 
-        if calculate_dot( points, p ) < 0:
-            draw_line( screen, points[p][0], points[p][1], points[p][2],
-                       points[p+1][0], points[p+1][1], points[p+1][2], color, z_buffer )
-            draw_line( screen, points[p+1][0], points[p+1][1], points[p+1][2],
-                       points[p+2][0], points[p+2][1], points[p+2][2], color, z_buffer )
-            draw_line( screen, points[p+2][0], points[p+2][1], points[p+2][2],
-                       points[p][0], points[p][1], points[p][2], color, z_buffer )
+                for light in sources:
+                    l = normalize(light[0:3])
+                    
+                    diffuse_light = [light[3]*constants[3]*dot_product(normal, l), light[4]*constants[4]*dot_product(normal, l), light[5]*constants[5]*dot_product(normal, l)]
+                    idiff = [idiff[0] + (diffuse_light[0] if diffuse_light[0] > 0 else 0), idiff[1] + (diffuse_light[1] if diffuse_light[1] > 0 else 0), idiff[2] + (diffuse_light[2] if diffuse_light[2] > 0 else 0)]
+                    angle = pow(dot_product(sub_vectors(scalar_product(scalar_product(normal, dot_product(l, normal)), 2), l), view), 2)
+                    specular_light = [light[3]*constants[6]*angle,light[4]*constants[7]*angle,light[5]*constants[8]*angle]
+                    ispec = [ispec[0] + (specular_light[0] if specular_light[0] > 0 else 0), ispec[0] + (specular_light[0] if specular_light[0] > 0 else 0), ispec[0] + (specular_light[0] if specular_light[0] > 0 else 0)]
+                    
+                c = [int(iamb[x]+idiff[x]+ispec[x]) for x in xrange(3)]
+                
+                scanline_convert( points[p], points[p+1], points[p+2], screen, c, z_buffer)
+
         p+= 3
 
-
-
+        
 def add_box( points, x, y, z, width, height, depth ):
     x1 = x + width
     y1 = y - height
@@ -380,6 +401,56 @@ def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer):
             y = y + 1
             z += dz/dy
             d = d + dx
+       
+def scanline_conversion(p0, p1, p2, screen, color, z_buffer):
+    pnts = sorted([p0, p1, p2], key = lambda p:p[1]) #sorts points by they're y val
+    for p in pnts:
+        for i in range(len(p)):
+            p[i] = floor(p[i])
 
-def scanline_conversion(p0,p1,p2):
-    pass
+    if pnts[2][1] != pnts[0][1]:
+        TBx = float((pnts[2][0]-pnts[0][0]))/(pnts[2][1]-pnts[0][1])
+        TBz = float((pnts[2][2]-pnts[0][2]))/(pnts[2][1]-pnts[0][1])
+
+    else:
+        TBx = 0
+        TBz = 0
+
+    
+    if pnts[2][1] != pnts[1][1]:
+        TMx = float((pnts[2][0]-pnts[1][0]))/(pnts[2][1]-pnts[1][1])
+        TMz = float((pnts[2][2]-pnts[1][2]))/(pnts[2][1]-pnts[1][1])
+    else:
+        TMx = 0
+        TMz = 0
+
+        
+    if pnts[1][1] != pnts[0][1]:
+        MBx = float((pnts[1][0]-pnts[0][0]))/(pnts[1][1]-pnts[0][1])
+        MBz = float((pnts[1][2]-pnts[0][2]))/(pnts[1][1]-pnts[0][1])
+    else:
+        MBx = 0
+        MBz = 0
+
+
+    if pnts[0][1] != pnts[1][1]:
+        x0 = pnts[0][0]
+        z0 = pnts[0][2]
+        x1 = pnts[0][0]
+        z1 = pnts[0][2]
+    else:
+        x0 = pnts[0][0]
+        z0 = pnts[0][2]
+        x1 = pnts[1][0]
+        z1 = pnts[1][2]
+        
+    for y in range(int(pnts[0][1]), int(pnts[2][1])):
+        if (y >= pnts[1][1] and pnts[0][1] != pnts[1][1]) or (pnts[0][1] == pnts[1][1]):
+            x1 += TMx
+            z1 += TMz
+        else:
+            x1 += MBx
+            z1 += MBz
+        x0 += TBx
+        z0 += TBz
+        draw_line(screen, x0, y, z0, x1, y, z1, color, z_buffer)

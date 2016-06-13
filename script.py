@@ -148,6 +148,9 @@ def run(filename):
     color = [255, 255, 255]
     tmp = new_matrix()
     ident( tmp )
+    sources = []
+    shading = 'flat'
+    constants = [1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
     p = mdl.parseFile(filename)
 
@@ -165,6 +168,7 @@ def run(filename):
 
         stack = [ tmp ]
         screen = new_screen()
+     
 
         z_buffer = new_matrix(XRES, YRES)
         for x in xrange(XRES):
@@ -186,23 +190,35 @@ def run(filename):
             if command[0] == "display":
                 display(screen)
 
+            if command[0] == "shading":
+                shading = command[1];
+
+            if command[0] == "ambient":
+                color = command[1:]
+
+            if command[0] == "light":
+                sources.append(list(command[1:]))
+
+            if command[0] == "constants":
+                constants = command[1:]
+                
             if command[0] == "sphere":
                 m = []
                 add_sphere(m, command[1], command[2], command[3], command[4], 5)
                 matrix_mult(stack[-1], m)
-                draw_polygons( m, screen, color, z_buffer )
+                draw_polygons( m, screen, color, z_buffer, sources, constants, shading )
 
             if command[0] == "torus":
                 m = []
                 add_torus(m, command[1], command[2], command[3], command[4], command[5], 5)
                 matrix_mult(stack[-1], m)
-                draw_polygons( m, screen, color, z_buffer )
+                draw_polygons( m, screen, color, z_buffer, sources, constants, shading )
 
             if command[0] == "box":                
                 m = []
                 add_box(m, *command[1:])
                 matrix_mult(stack[-1], m)
-                draw_polygons( m, screen, color, z_buffer )
+                draw_polygons( m, screen, color, z_buffer, sources, constants, shading )
 
             if command[0] == "line":
                 m = []
@@ -277,6 +293,7 @@ def run(filename):
         if num_frames > 1:
             fname = 'temp/%s%03d.png' % (name, f)
             print 'Drawing frame: ' + fname
+            print screen
             save_extension(screen, fname)
             for x in xrange(XRES):
                 for y in xrange(YRES):
