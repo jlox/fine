@@ -27,7 +27,7 @@ def plot( screen, color, x, y, z, z_buffer):
     if ( x >= 0 and x < XRES and newy >= 0 and newy < YRES and z > z_buffer[x][newy]):
         screen[x][newy] = color[:]
         z_buffer[x][newy] = z
-
+            
 def clear_screen( screen ):
     for y in range( len(screen) ):
         for x in range( len(screen[y]) ):
@@ -52,9 +52,16 @@ def save_extension( screen, fname ):
     save_ppm( screen, ppm_name )
     p = Popen( ['convert', ppm_name, fname ], stdin=PIPE, stdout = PIPE )
     p.communicate()
-    remove(ppm_name)
+    if p.returncode != 0:
+        Popen.wait(Popen( ['imconvert', ppm_name, fname ], stdin=PIPE, stdout = PIPE ))
+        remove(ppm_name)
+    else:
+        remove(ppm_name)
 
 def display( screen ):
     ppm_name = 'pic.ppm'
     save_ppm( screen, ppm_name )
-    Popen( ['display', ppm_name], stdin=PIPE, stdout = PIPE )
+    try:
+        Popen.wait(Popen( ['display', ppm_name], stdin=PIPE, stdout = PIPE ))
+    except WindowsError:
+        Popen.wait(Popen( ['imdisplay', ppm_name], stdin=PIPE, stdout = PIPE ))

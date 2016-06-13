@@ -1,7 +1,7 @@
 from display import *
 from matrix import *
-from gmath import calculate_dot
-from math import cos, sin, pi, floor
+from gmath import *
+from math import cos, sin, pi, pow
 
 MAX_STEPS = 100
 
@@ -11,46 +11,104 @@ def add_polygon( points, x0, y0, z0, x1, y1, z1, x2, y2, z2 ):
     add_point( points, x2, y2, z2 )
     
 def draw_polygons( points, screen, color, z_buffer, sources, constants, shading):
-
     if len(points) < 3:
         print 'Need at least 3 points to draw a polygon!'
         return
 
     p = 0
+    view = [0, 0, 1]
+    
     while p < len( points ) - 2:
-        if shading == "wireframe":
-            if calculate_dot( points, p ) < 0:
+        if dot_product(view, calculate_normal( points, p )) > 0:
+            if shading == "wireframe":
                 draw_line( screen, points[p][0], points[p][1], points[p][2],
-                           points[p+1][0], points[p+1][1], points[p+1][2], color, z_buffer )
+                           points[p+1][0], points[p+1][1], points[p][2], color, z_buffer )
                 draw_line( screen, points[p+1][0], points[p+1][1], points[p+1][2],
-                           points[p+2][0], points[p+2][1], points[p+2][2], color, z_buffer )
+                           points[p+2][0], points[p+2][1], points[p+2][2], color, z_buffer)
                 draw_line( screen, points[p+2][0], points[p+2][1], points[p+2][2],
-                        points[p][0], points[p][1], points[p][2], color, z_buffer )
-            if shading == "flat":
-                c = []
+                           points[p][0], points[p][1], points[p][2], color, z_buffer)
                 
-                iamb = [color[0]*constants[0], color[1]*constants[1], color[2]*constants[2]]
-                idiff = [0, 0, 0]
-                ispec = [0, 0, 0]
+            elif shading == "flat":
+                c = calculate_light(color, sources, constants, normalize(calculate_normal(points, p)), view)
+
+                scanline_conversion( points[p], points[p+1], points[p+2], screen, c, z_buffer, "flat", 0, 0, 0, 0 )
+
+           
             
-                norm = normalize(calculate_normal(points, p))
+        p += 3
 
-                for light in sources:
-                    l = normalize(light[0:3])
-                    
-                    diffuse_light = [light[3]*constants[3]*dot_product(normal, l), light[4]*constants[4]*dot_product(normal, l), light[5]*constants[5]*dot_product(normal, l)]
-                    idiff = [idiff[0] + (diffuse_light[0] if diffuse_light[0] > 0 else 0), idiff[1] + (diffuse_light[1] if diffuse_light[1] > 0 else 0), idiff[2] + (diffuse_light[2] if diffuse_light[2] > 0 else 0)]
-                    angle = pow(dot_product(sub_vectors(scalar_product(scalar_product(normal, dot_product(l, normal)), 2), l), view), 2)
-                    specular_light = [light[3]*constants[6]*angle,light[4]*constants[7]*angle,light[5]*constants[8]*angle]
-                    ispec = [ispec[0] + (specular_light[0] if specular_light[0] > 0 else 0), ispec[0] + (specular_light[0] if specular_light[0] > 0 else 0), ispec[0] + (specular_light[0] if specular_light[0] > 0 else 0)]
-                    
-                c = [int(iamb[x]+idiff[x]+ispec[x]) for x in xrange(3)]
-                
-                scanline_convert( points[p], points[p+1], points[p+2], screen, c, z_buffer)
+def scanline_conversion(p0, p1, p2, screen, color, z_buffer, shading_type, ambient, point_sources, constants, view):
+    pnts = sorted([p0, p1, p2], key = lambda p:p[1])
+    for p in pnts:
+        for i in xrange(3):
+            p[i] = round(p[i])
 
-        p+= 3
-
+    if pnts[2][1] != pnts[0][1]:
+        TBx = (pnts[2][0]-pnts[0][0])/(pnts[2][1]-pnts[0][1])
+        TBz = (pnts[2][2]-pnts[0][2])/(pnts[2][1]-pnts[0][1])
+    else:
+        TBx = 0
+        TBz = 0
+        TBi = 0
         
+    if pnts[2][1] != pnts[1][1]:
+        TMx = (pnts[2][0]-pnts[1][0])/(pnts[2][1]-pnts[1][1])
+        TMz = (pnts[2][2]-pnts[1][2])/(pnts[2][1]-pnts[1][1])
+        
+    else:
+        TMx = 0
+        TMz = 0
+        TMi = 0
+        
+    if pnts[1][1] != pnts[0][1]:
+        MBx = (pnts[1][0]-pnts[0][0])/(pnts[1][1]-pnts[0][1])
+        MBz = (pnts[1][2]-pnts[0][2])/(pnts[1][1]-pnts[0][1])
+       
+    else:
+        MBx = 0
+        MBz = 0
+        MBi = 0
+        
+    if pnts[0][1] != pnts[1][1]:
+        x0 = pnts[0][0]
+        z0 = pnts[0][2]
+        x1 = pnts[0][0]
+        z1 = pnts[0][2]
+      
+    else:
+        x0 = pnts[0][0]
+        z0 = pnts[0][2]
+        x1 = pnts[1][0]
+        z1 = pnts[1][2]
+       
+    for y in xrange(int(pnts[0][1]), int(pnts[2][1])):
+        if (y >= pnts[1][1] and pnts[0][1] != pnts[1][1]) or (pnts[0][1] == pnts[1][1]):
+            x1 += TMx
+            z1 += TMz
+           
+        else:
+            x1 += MBx
+            z1 += MBz
+
+        x0 += TBx
+        z0 += TBz
+
+        dz = (z1-z0)/(x1-x0) if x1 != x0 else 0
+
+        if x1 > x0:
+            x = x0
+            z = z0
+        elif x0 > x1:
+            x = x1
+            z = z1
+        else:
+            plot(screen, [int(c) for c in color], x0, y, max(z0, z1), z_buffer)
+            continue
+        while x <= max(x0, x1):
+            plot(screen, [int(c) for c in color], x, y, z, z_buffer)
+            x += 1
+            z += dz
+
 def add_box( points, x, y, z, width, height, depth ):
     x1 = x + width
     y1 = y - height
@@ -155,10 +213,10 @@ def add_sphere( points, cx, cy, cz, r, step ):
             pz3 = temp[ index + 1 ][2]
       
             if longt != 0:
-                add_polygon( points, px0, py0, pz0, px1, py1, pz1, px2, py2, pz2 )
+                add_polygon( points, px0, py0, pz0, px2, py2, pz2, px1, py1, pz1 )
 
             if longt != longt_stop - 1:
-                add_polygon( points, px2, py2, pz2, px3, py3, pz3, px0, py0, pz0 )
+                add_polygon( points, px2, py2, pz2, px0, py0, pz0, px3, py3, pz3 )
             
             longt+= 1
         lat+= 1
@@ -229,8 +287,8 @@ def add_torus( points, cx, cy, cz, r0, r1, step ):
                 pz3 = temp[ (lat * num_steps) % num_points ][2]
 
 
-            add_polygon( points, px0, py0, pz0, px1, py1, pz1, px2, py2, pz2 );
-            add_polygon( points, px2, py2, pz2, px3, py3, pz3, px0, py0, pz0 );        
+            add_polygon( points, px0, py0, pz0, px2, py2, pz2, px1, py1, pz1 );
+            add_polygon( points, px2, py2, pz2, px0, py0, pz0, px3, py3, pz3 );        
             
             longt+= 1
         lat+= 1
@@ -293,14 +351,14 @@ def add_curve( points, x0, y0, x1, y1, x2, y2, x3, y3, step, curve_type ):
         y0 = y
         t+= step
 
-def draw_lines( matrix, screen, color, z_buffer):
+def draw_lines( matrix, screen, color , z_buffer):
     if len( matrix ) < 2:
         print "Need at least 2 points to draw a line"
         
     p = 0
     while p < len( matrix ) - 1:
         draw_line( screen, matrix[p][0], matrix[p][1], matrix[p][2],
-                   matrix[p+1][0], matrix[p+1][1], matrix[p + 1][2], color, z_buffer )
+                   matrix[p+1][0], matrix[p+1][1], matrix[p][2], color , z_buffer)
         p+= 2
 
 def add_edge( matrix, x0, y0, z0, x1, y1, z1 ):
@@ -310,8 +368,7 @@ def add_edge( matrix, x0, y0, z0, x1, y1, z1 ):
 def add_point( matrix, x, y, z=0 ):
     matrix.append( [x, y, z, 1] )
 
-
-def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer):
+def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer ):
     dx = x1 - x0
     dy = y1 - y0
     dz = z1 - z0
@@ -329,12 +386,8 @@ def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer):
         z0 = z1
         z1 = tmp
 
-
     if dx == 0 and dy == 0:
-        if z0 > z1:
-            plot(screen, color, x0, y0, z0, z_buffer)
-        else:
-            plot(screen, color, x0, y0, z1, z_buffer)
+        plot(screen, color, x0, y0, max(z0, z1), z_buffer)
     elif dx == 0:
         y = y0
         z = z0
@@ -401,56 +454,3 @@ def draw_line( screen, x0, y0, z0, x1, y1, z1, color, z_buffer):
             y = y + 1
             z += dz/dy
             d = d + dx
-       
-def scanline_conversion(p0, p1, p2, screen, color, z_buffer):
-    pnts = sorted([p0, p1, p2], key = lambda p:p[1]) #sorts points by they're y val
-    for p in pnts:
-        for i in range(len(p)):
-            p[i] = floor(p[i])
-
-    if pnts[2][1] != pnts[0][1]:
-        TBx = float((pnts[2][0]-pnts[0][0]))/(pnts[2][1]-pnts[0][1])
-        TBz = float((pnts[2][2]-pnts[0][2]))/(pnts[2][1]-pnts[0][1])
-
-    else:
-        TBx = 0
-        TBz = 0
-
-    
-    if pnts[2][1] != pnts[1][1]:
-        TMx = float((pnts[2][0]-pnts[1][0]))/(pnts[2][1]-pnts[1][1])
-        TMz = float((pnts[2][2]-pnts[1][2]))/(pnts[2][1]-pnts[1][1])
-    else:
-        TMx = 0
-        TMz = 0
-
-        
-    if pnts[1][1] != pnts[0][1]:
-        MBx = float((pnts[1][0]-pnts[0][0]))/(pnts[1][1]-pnts[0][1])
-        MBz = float((pnts[1][2]-pnts[0][2]))/(pnts[1][1]-pnts[0][1])
-    else:
-        MBx = 0
-        MBz = 0
-
-
-    if pnts[0][1] != pnts[1][1]:
-        x0 = pnts[0][0]
-        z0 = pnts[0][2]
-        x1 = pnts[0][0]
-        z1 = pnts[0][2]
-    else:
-        x0 = pnts[0][0]
-        z0 = pnts[0][2]
-        x1 = pnts[1][0]
-        z1 = pnts[1][2]
-        
-    for y in range(int(pnts[0][1]), int(pnts[2][1])):
-        if (y >= pnts[1][1] and pnts[0][1] != pnts[1][1]) or (pnts[0][1] == pnts[1][1]):
-            x1 += TMx
-            z1 += TMz
-        else:
-            x1 += MBx
-            z1 += MBz
-        x0 += TBx
-        z0 += TBz
-        draw_line(screen, x0, y, z0, x1, y, z1, color, z_buffer)
