@@ -1,0 +1,41 @@
+frames 50
+basename funInTheSun
+push
+move 0 250 0
+rotate y 360 spiny
+scale 2 2 2 bigenator
+move 100 0 0 righty
+sphere 0 0 0 40
+vary spiny 0 49 0 1
+vary bigenator 0 49 0 1
+vary righty 0 49 0 1
+pop
+push
+move 250 0 0
+rotate x 360 spins
+scale 2 2 2 bigs
+move 0 100 0 ups
+sphere 0 0 0 40
+vary spins 0 49 0 1
+vary bigs 0 49 0 1
+vary ups 0 49 0 1
+pop
+push
+move 250 500 0
+rotate x 360 spines
+scale 2 2 2 biges
+move 0 -100 0 downes
+sphere 0 0 0 40
+vary spines 0 49 0 1
+vary biges 0 49 0 1
+vary downes 0 49 0 1
+pop
+push
+move 500 250 0
+rotate y 360 spinny
+scale 2 2 2 bigny
+move -100 0 0 leftny
+sphere 0 0 0 40
+vary spinny 0 49 0 1
+vary bigny 0 49 0 1
+vary leftny 0 49 0 1
